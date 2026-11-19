@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>SerraGlaze JS verification</title>
+<pre id="out">running…</pre>
+<script src="../docs/serraglaze-model.js"></script>
+<script>
+// Compares docs/serraglaze-model.js against tools/test_cases.json
+// (written by tools/make_test_cases.py). Serve the repo root, open /tools/verify.html.
+(async () => {
+  const [json, cases] = await Promise.all([
+    fetch("../docs/model.json").then(r => r.json()),
+    fetch("test_cases.json").then(r => r.json()),
+  ]);
+  const m = loadSerraGlazeModel(json);
+  const stat = () => ({ abs: 0 });
+  const vsF64 = stat(), vsTorch = stat(), torchVsF64 = stat();
+  const upd = (s, a, b) => a.forEach((v, j) => { s.abs = Math.max(s.abs, Math.abs(v - b[j])); });
+  let range = 0;
+  cases.forEach(c => {
+    const y = Array.from(m.predict(c.input));
+    upd(vsF64, y, c.output_f64);
+    upd(vsTorch, y, c.output);
+    upd(torchVsF64, c.output, c.output_f64);
+    range = Math.max(range, ...c.output.map(Math.abs));
+  });
+  const f = s => `${s.abs.toExponential(2)} lux  (${(s.abs / range).toExponential(2)} of max output)`;
+  const result = {
+    n: cases.length, range,
+    jsVsFloat64: vsF64.abs, jsVsTorch: vsTorch.abs, torchVsFloat64: torchVsF64.abs,
+    pass: vsF64.abs < 1e-5 && vsTorch.abs <= 2 * torchVsF64.abs + 1e-5,
+  };
+  window.verifyResult = result;
+  document.getElementById("out").textContent = [
+    `${cases.length} cases, outputs up to ${range.toFixed(0)} lux`,
+    ``,
+    `JS      vs Python float64 reference : ${f(vsF64)}`,
+    `JS      vs PyTorch (app.py)         : ${f(vsTorch)}`,
+    `PyTorch vs Python float64 reference : ${f(torchVsF64)}   ← PyTorch's own float32 noise`,
+    ``,
+    result.pass ? "PASS" : "FAIL",
+  ].join("\n");
+})();
+</script>

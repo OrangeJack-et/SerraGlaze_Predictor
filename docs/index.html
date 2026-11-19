@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SerraGlaze Predictor</title>
+  <meta name="description" content="A neural-network surrogate for Radiance daylight simulation of rooms fitted with SerraGlaze window film. Runs entirely in your browser.">
+  <meta name="theme-color" content="#16120e">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://serraglaze.jackmarsters.com/">
+  <meta property="og:title" content="SerraGlaze Predictor">
+  <meta property="og:description" content="Predict how daylight spreads through a room with SerraGlaze film, in under a millisecond, in your browser.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2316120e'/%3E%3Crect x='3' y='3' width='4' height='4' fill='%23ffd23f'/%3E%3Crect x='9' y='3' width='4' height='4' fill='%23ff7a00'/%3E%3Crect x='3' y='9' width='4' height='4' fill='%23c51b00'/%3E%3Crect x='9' y='9' width='4' height='4' fill='%23ffe9a6'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #faf8f5;
+      --surface: #ffffff;
+      --text: #1d1a16;
+      --muted: #6b645b;
+      --line: #e6e0d8;
+      --accent: #c2410c;
+      --accent-soft: #fdeee4;
+      --track: #e6e0d8;
+      --shadow: 0 1px 2px rgba(30, 20, 10, .05), 0 4px 16px rgba(30, 20, 10, .05);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #16120e;
+        --surface: #201b16;
+        --text: #f1ece5;
+        --muted: #a39a8e;
+        --line: #352d25;
+        --accent: #fb923c;
+        --accent-soft: #3a2616;
+        --track: #3a3129;
+        --shadow: none;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #16120e;
+      --surface: #201b16;
+      --text: #f1ece5;
+      --muted: #a39a8e;
+      --line: #352d25;
+      --accent: #fb923c;
+      --accent-soft: #3a2616;
+      --track: #3a3129;
+      --shadow: none;
+    }
+
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.6 "IBM Plex Sans", system-ui, sans-serif;
+    }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+    a { color: var(--accent); text-underline-offset: 2px; }
+    .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+    header { padding: 48px 0 8px; }
+    .eyebrow { font: 500 13px/1 "IBM Plex Mono", monospace; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; }
+    h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.1; margin: 0 0 14px; font-weight: 600; letter-spacing: -.02em; }
+    .lede { font-size: 18px; color: var(--muted); max-width: 680px; margin: 0; }
+    .links { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 18px; font-size: 15px; }
+
+    /* ---------- predictor ---------- */
+    .app {
+      display: grid;
+      grid-template-columns: minmax(0, 330px) minmax(0, 1fr);
+      gap: 24px;
+      margin: 36px 0 12px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+    @media (max-width: 760px) { .app { grid-template-columns: 1fr; padding: 18px; } }
+
+    h2 { font-size: 22px; margin: 0 0 12px; font-weight: 600; letter-spacing: -.01em; }
+    .app h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 500; margin-bottom: 18px; }
+
+    .field { margin-bottom: 22px; }
+    .field-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    .field label { font-weight: 500; font-size: 15px; }
+    .field output { font: 500 15px "IBM Plex Mono", monospace; color: var(--accent); white-space: nowrap; }
+    .field .hint { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+    input[type=range] { width: 100%; margin: 10px 0 0; accent-color: var(--accent); height: 22px; cursor: pointer; }
+
+    .range-ends { display: flex; justify-content: space-between; font: 12px "IBM Plex Mono", monospace; color: var(--muted); }
+
+    .opts { border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 10px; font-size: 14px; }
+    .opts label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+    .opts input { accent-color: var(--accent); width: 16px; height: 16px; }
+    button.reset {
+      justify-self: start; margin-top: 4px; font: inherit; font-size: 14px;
+      background: none; border: 1px solid var(--line); color: var(--text);
+      padding: 6px 12px; border-radius: 8px; cursor: pointer;
+    }
+    button.reset:hover { border-color: var(--muted); }
+
+    .out { min-width: 0; }
+    .plot { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 10px; align-items: stretch; }
+    .ylab { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; font-size: 13px; color: var(--muted); }
+    .xlab { grid-column: 2; text-align: center; font-size: 13px; color: var(--muted); }
+    .heat {
+      display: grid; grid-template-columns: repeat(13, 1fr);
+      aspect-ratio: 1; width: 100%; max-width: 520px; justify-self: center;
+      border-radius: 6px; overflow: hidden; background: #000;
+      position: relative;
+    }
+    .heat div { position: relative; font: 500 9px/1 "IBM Plex Mono", monospace; display: flex; align-items: center; justify-content: center; }
+    .heat.values div::after { content: attr(data-v); }
+    .heat div:hover { outline: 2px solid var(--text); outline-offset: -2px; z-index: 1; }
+
+    .cbar { display: grid; grid-template-rows: auto 1fr auto; justify-items: center; font: 12px "IBM Plex Mono", monospace; color: var(--muted); gap: 6px; }
+    .cbar .bar { width: 14px; border-radius: 4px; background: linear-gradient(to top, var(--cmap)); }
+
+    .readout { min-height: 22px; text-align: center; font: 13px "IBM Plex Mono", monospace; color: var(--muted); margin-top: 8px; }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+    .stat { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+    .stat .k { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .stat .v { font: 500 22px/1.3 "IBM Plex Mono", monospace; }
+    .stat .v small { font-size: 13px; color: var(--muted); font-weight: 400; }
+    @media (max-width: 480px) { .stat .v { font-size: 18px; } .stat .v small { font-size: 12px; } .heat div { font-size: 7px; } }
+    .note { font-size: 13px; color: var(--muted); margin: 10px 0 0; min-height: 20px; }
+    .timing { font: 12px "IBM Plex Mono", monospace; color: var(--muted); text-align: right; margin-top: 6px; }
+
+    /* ---------- prose ---------- */
+    section.prose { padding: 36px 0 4px; max-width: 760px; }
+    section.prose p { margin: 0 0 14px; }
+    .table-scroll { overflow-x: auto; margin: 6px 0 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+    table { border-collapse: collapse; width: 100%; font-size: 15px; min-width: 520px; }
+    th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+    th { font-weight: 500; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
+    tr:last-child td { border-bottom: 0; }
+    td.num { font-family: "IBM Plex Mono", monospace; white-space: nowrap; }
+    ul { padding-left: 20px; margin: 0 0 14px; }
+    li { margin-bottom: 6px; }
+    code { font: 14px "IBM Plex Mono", monospace; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+
+    footer { border-top: 1px solid var(--line); margin-top: 40px; padding: 24px 0 48px; font-size: 14px; color: var(--muted); }
+
+    .error { color: var(--accent); font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <p class="eyebrow">Machine-learned daylighting surrogate</p>
+      <h1>SerraGlaze Predictor</h1>
+      <p class="lede">
+        SerraGlaze is SerraLux's micro-structured window film, which redirects daylight deeper into a room.
+        Simulating its effect with Radiance takes about two minutes per room. This neural network predicts
+        the full illuminance map in under a millisecond, running entirely in your browser.
+      </p>
+      <div class="links">
+        <a href="https://github.com/OrangeJack-et/SerraGlaze_Predictor">Source code on GitHub</a>
+        <a href="#about">How it works</a>
+        <a href="#limitations">Limitations</a>
+      </div>
+    </header>
+
+    <main>
+      <div class="app" id="app">
+        <div>
+          <h2>Room parameters</h2>
+
+          <div class="field">
+            <div class="field-head"><label for="window_height">Vertical window placement</label><output id="window_height_out" for="window_height"></output></div>
+            <input type="range" id="window_height" min="-0.5" max="0.5" step="0.01" value="0">
+            <div class="range-ends"><span>−0.5</span><span>0.5</span></div>
+          </div>
+
+          <div class="field">
+            <div class="field-head"><label for="angle">Solar azimuth</label><output id="angle_out" for="angle"></output></div>
+            <input type="range" id="angle" min="0" max="6.283185307179586" step="0.01" value="3.141592653589793">
+            <div class="range-ends"><span>0</span><span>2π rad</span></div>
+          </div>
+
+          <div class="field">
+            <div class="field-head"><label for="room_depth">Room depth</label><output id="room_depth_out" for="room_depth"></output></div>
+            <input type="range" id="room_depth" min="0.1" max="1.7" step="0.01" value="0.9">
+            <div class="range-ends"><span>0.1 m</span><span>1.7 m</span></div>
+          </div>
+
+          <div class="field">
+            <div class="field-head"><label for="window_size">Window size</label><output id="window_size_out" for="window_size"></output></div>
+            <input type="range" id="window_size" min="0.1" max="1.9" step="0.01" value="1">
+            <div class="range-ends"><span>0.1</span><span>1.9</span></div>
+          </div>
+
+          <div class="opts">
+            <label><input type="checkbox" id="fixed"> Fixed colour scale (0–2500 lux)</label>
+            <label><input type="checkbox" id="values"> Show values on the grid</label>
+            <button class="reset" id="reset" type="button">Reset to defaults</button>
+          </div>
+        </div>
+
+        <div class="out">
+          <h2>Predicted illuminance</h2>
+          <div class="plot">
+            <div class="ylab">Sensor row</div>
+            <div class="heat" id="heat" role="img" aria-label="13 by 13 heatmap of predicted illuminance"></div>
+            <div class="cbar"><span id="cmax">–</span><div class="bar"></div><span id="cmin">0</span></div>
+            <div class="xlab">Sensor column</div>
+          </div>
+          <div class="readout" id="readout">Hover over a cell for its value</div>
+          <div class="stats">
+            <div class="stat"><div class="k">Average</div><div class="v" id="avg">–</div></div>
+            <div class="stat"><div class="k">Max</div><div class="v" id="max">–</div></div>
+            <div class="stat"><div class="k">Min</div><div class="v" id="min">–</div></div>
+          </div>
+          <p class="note" id="note"></p>
+          <div class="timing" id="timing"></div>
+        </div>
+      </div>
+
+      <section class="prose" id="about">
+        <h2>How it works</h2>
+        <p>
+          The network was trained on 1,000 Radiance simulations of a room fitted with SerraGlaze film,
+          using the film's measured BSDF, and tested on 100 held-out simulations. Each simulation
+          records illuminance on a 13 × 13 grid of sensors across the room.
+        </p>
+        <p>
+          The four room parameters are standardised and passed through a small fully connected network
+          (4 → 128 → 256 → 128 → 20, ReLU). The network predicts 20 principal components of the
+          illuminance map, which are projected back to the 169 sensor values. These components capture
+          99.3% of the variance in the training data. The same weights and preprocessing as the original
+          PyTorch model run here in plain JavaScript, so nothing is sent to a server.
+        </p>
+
+        <h2>Results</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Model</th><th>Predicts</th><th>R²</th><th>Speed-up over Radiance</th></tr></thead>
+            <tbody>
+              <tr><td>Neural network (PyTorch)</td><td>full 13 × 13 illuminance grid</td><td class="num">0.988</td><td class="num">~4 × 10⁵</td></tr>
+              <tr><td>XGBoost</td><td>average room illuminance</td><td class="num">0.986</td><td class="num">~7 × 10⁶</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>This page runs the neural network. The XGBoost model only predicts the average, so it isn't included here.</p>
+
+        <h2 id="limitations">Limitations</h2>
+        <ul>
+          <li>Validated against Radiance simulations, not physical measurements.</li>
+          <li>Azimuth is not encoded as periodic, so predictions at 0 and 2π differ by about 7% even though they are the same direction.</li>
+          <li>At some extreme settings the network predicts slightly negative illuminance for a few sensors. These are shown as 0 lux on the map.</li>
+        </ul>
+
+        <h2>Context</h2>
+        <p>
+          Final-year industrial project with SerraLux, University of Oxford Department of Physics, 2025–26.
+          Awarded the Department of Physics prize for best group project presentation.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <a href="https://github.com/OrangeJack-et/SerraGlaze_Predictor">github.com/OrangeJack-et/SerraGlaze_Predictor</a>
+    </footer>
+  </div>
+
+  <script src="serraglaze-model.js"></script>
+  <script>
+  (() => {
+    const IDS = ["window_height", "angle", "room_depth", "window_size"];
+    const DEFAULTS = { window_height: 0, angle: Math.PI, room_depth: 0.9, window_size: 1 };
+    const FIXED_MAX = 2500;
+    const N = 13;
+
+    // matplotlib "hot" colormap
+    const clamp01 = v => Math.min(1, Math.max(0, v));
+    function hot(t) {
+      t = clamp01(t);
+      const r = clamp01(0.0416 + t / 0.365079);
+      const g = clamp01((t - 0.365079) / 0.380952);
+      const b = clamp01((t - 0.746032) / 0.253968);
+      return [r * 255 | 0, g * 255 | 0, b * 255 | 0];
+    }
+    const css = ([r, g, b]) => `rgb(${r},${g},${b})`;
+    document.querySelector(".cbar .bar").style.setProperty(
+      "--cmap", Array.from({ length: 11 }, (_, i) => css(hot(i / 10))).join(",")
+    );
+
+    const $ = id => document.getElementById(id);
+    const heat = $("heat");
+    const cells = [];
+    for (let i = 0; i < N * N; i++) {
+      const d = document.createElement("div");
+      d.dataset.i = i;
+      heat.appendChild(d);
+      cells.push(d);
+    }
+
+    const fmt = v => Math.round(v).toLocaleString("en-GB");
+    let grid = null;
+
+    function showValues() {
+      const angle = +$("angle").value;
+      $("window_height_out").textContent = (+$("window_height").value).toFixed(2);
+      $("angle_out").textContent = `${angle.toFixed(2)} rad (${Math.round(angle * 180 / Math.PI)}°)`;
+      $("room_depth_out").textContent = `${(+$("room_depth").value).toFixed(2)} m`;
+      $("window_size_out").textContent = (+$("window_size").value).toFixed(2);
+    }
+
+    function render(model) {
+      showValues();
+      const inputs = IDS.map(id => +$(id).value);
+      const t0 = performance.now();
+      const raw = model.predict(inputs);
+      const ms = performance.now() - t0;
+
+      let negatives = 0, sum = 0, mx = -Infinity, mn = Infinity;
+      grid = Array.from(raw, v => {
+        if (v < 0) negatives++;
+        const c = Math.max(0, v);
+        sum += c; mx = Math.max(mx, c); mn = Math.min(mn, c);
+        return c;
+      });
+
+      const top = $("fixed").checked ? FIXED_MAX : (mx > 0 ? mx : 1);
+      cells.forEach((d, i) => {
+        const [r, g, b] = hot(grid[i] / top);
+        d.style.background = `rgb(${r},${g},${b})`;
+        d.style.color = (0.299 * r + 0.587 * g + 0.114 * b) > 140 ? "#000" : "#fff";
+        d.dataset.v = Math.round(grid[i]);
+      });
+
+      $("cmax").textContent = fmt(top);
+      $("avg").innerHTML = `${fmt(sum / grid.length)} <small>lux</small>`;
+      $("max").innerHTML = `${fmt(mx)} <small>lux</small>`;
+      $("min").innerHTML = `${fmt(mn)} <small>lux</small>`;
+      $("note").textContent = negatives
+        ? `${negatives} sensor${negatives > 1 ? "s" : ""} predicted slightly below 0 lux; shown as 0.`
+        : ($("fixed").checked && mx > FIXED_MAX ? `Peak exceeds ${fmt(FIXED_MAX)} lux; the brightest cells are clipped to white.` : "");
+      $("timing").textContent = `computed in ${ms < 1 ? ms.toFixed(2) : ms.toFixed(1)} ms`;
+    }
+
+    heat.addEventListener("mousemove", e => {
+      const i = e.target.dataset.i;
+      if (i === undefined || !grid) return;
+      $("readout").textContent = `row ${Math.floor(i / N)}, column ${i % N}: ${fmt(grid[i])} lux`;
+    });
+    heat.addEventListener("mouseleave", () => { $("readout").textContent = "Hover over a cell for its value"; });
+
+    fetch("model.json")
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(json => {
+        const model = loadSerraGlazeModel(json);
+        model.predict([0, 0, 1, 1]); // warm-up so the timing shown reflects steady-state speed
+        const update = () => render(model);
+        IDS.forEach(id => $(id).addEventListener("input", update));
+        $("fixed").addEventListener("change", update);
+        $("values").addEventListener("change", () => heat.classList.toggle("values", $("values").checked));
+        $("reset").addEventListener("click", () => {
+          IDS.forEach(id => { $(id).value = DEFAULTS[id]; });
+          update();
+        });
+        update();
+      })
+      .catch(err => {
+        $("note").innerHTML = `<span class="error">Couldn't load the model (${err.message}). Try refreshing the page.</span>`;
+      });
+  })();
+  </script>
+</body>
+</html>
