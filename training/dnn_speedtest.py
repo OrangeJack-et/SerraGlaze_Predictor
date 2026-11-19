@@ -1,11 +1,11 @@
 """Inference speed test for the deployed spatial DNN.
 
-Loads the deployed weights and pipeline from the repo root and times, over
+Loads the deployed weights and pipeline from model/ and times, over
 1,000 trials on the 100-run test inputs: the network forward pass alone, the
 full pipeline (network + inverse PCA + inverse standardisation) for a single
 input, and batched prediction. Reports speed-up over a ~120 s Radiance run.
 
-Reads: serraglaze_dnn_weights.pth, pipeline.joblib (repo root)
+Reads: model/serraglaze_dnn_weights.pth, model/pipeline.joblib
        data/DNN_SerraGlaze_Final_TestingData.txt
 """
 import platform
@@ -37,13 +37,13 @@ class SerraluxDNN(nn.Module):
 
 
 # ─── Load model + pipeline ───────────────────────────────────────────
-pipeline = joblib.load(REPO_ROOT / 'pipeline.joblib')
+pipeline = joblib.load(REPO_ROOT / 'model' / 'pipeline.joblib')
 pca = pipeline['pca']
 scaler_Inputs = pipeline['scaler_Inputs']
 scaler_Outputs = pipeline['scaler_Outputs']
 
 model = SerraluxDNN(n_components=pca.n_components_)
-model.load_state_dict(torch.load(REPO_ROOT / 'serraglaze_dnn_weights.pth'))
+model.load_state_dict(torch.load(REPO_ROOT / 'model' / 'serraglaze_dnn_weights.pth'))
 model.eval()
 
 # ─── Load test set (so we time on representative inputs) ─────────────

@@ -27,9 +27,9 @@ def f64(a):
 
 
 def main():
-    pipeline = joblib.load(ROOT / "pipeline.joblib")
+    pipeline = joblib.load(ROOT / "model" / "pipeline.joblib")
     sx, sy, pca = pipeline["scaler_Inputs"], pipeline["scaler_Outputs"], pipeline["pca"]
-    state = torch.load(ROOT / "serraglaze_dnn_weights.pth", map_location="cpu")
+    state = torch.load(ROOT / "model" / "serraglaze_dnn_weights.pth", map_location="cpu")
 
     # nn.Sequential indices of the Linear layers (ReLU between each, none after the last)
     layers = []

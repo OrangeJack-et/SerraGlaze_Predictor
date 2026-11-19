@@ -10,6 +10,10 @@ this model does it in under a millisecond.
 The original Streamlit version is still on Hugging Face:
 https://orange-jacket-serraglaze-predictor.hf.space/
 
+**Report:** [Predicting Daylighting Outcomes of SerraGlaze Using Machine Learning](report/SerraGlaze_ML_Report.pdf) (PDF)
+
+![The SerraGlaze Predictor web app: room-parameter sliders and the predicted 13 × 13 illuminance map](docs/img/app-screenshot.png)
+
 ## Results
 Trained on 1,000 Radiance simulations and tested on 100 held-out ones.
 
@@ -76,7 +80,7 @@ Put the simulation files in `data/`, then from the repo root:
     python training/dnn_speedtest.py
 
 Trained models are written to `training/outputs/` (not tracked by git), so
-retraining never overwrites the deployed weights at the repo root.
+retraining never overwrites the deployed model in `model/`.
 
 ### Data availability
 Simulation data belongs to SerraLux and is not included.
@@ -87,19 +91,20 @@ Simulation data belongs to SerraLux and is not included.
 - At some extreme settings the network predicts slightly negative illuminance
   for a few sensors. The web app shows these as 0 lux.
 
-## Files
-- `docs/`: the static web app, served by GitHub Pages
-  - `index.html`: the page
-  - `serraglaze-model.js`: the network and preprocessing in plain JavaScript
-  - `model.json`: weights and fitted preprocessing parameters
-- `tools/`: scripts to regenerate `model.json` and check the JavaScript against PyTorch
-- `app.py`: the Streamlit app
-- `serraglaze_dnn_weights.pth`: trained network weights
-- `pipeline.joblib`: fitted preprocessing pipeline (input scaler, PCA, output scaler)
-- `training/`: sampling, training and evaluation scripts (see "How the model was built")
+## Repository layout
 
-This repository holds the deployed apps, the trained model and the code that
-produced it.
+    docs/       static web app, served by GitHub Pages
+                (index.html, serraglaze-model.js, model.json)
+    model/      deployed model: network weights (serraglaze_dnn_weights.pth)
+                and preprocessing pipeline (pipeline.joblib: scalers + PCA)
+    training/   sampling, training and evaluation scripts, figures
+    tools/      export model/ to docs/model.json and check the JavaScript
+                against PyTorch
+    report/     the project report (PDF)
+    app.py      the Streamlit app
+
+The flow is: `training/` produces `model/`, `tools/` exports it to
+`docs/model.json`, and `docs/` runs it in the browser.
 
 ## Running it
 Web app: serve the repo root and open `/docs/`, for example
@@ -113,7 +118,9 @@ Streamlit app:
     streamlit run app.py
 
 ## Updating the web model
-After retraining, regenerate the browser model and check it still matches:
+After retraining, copy the new `serraglaze_dnn_weights.pth` and
+`pipeline.joblib` from `training/outputs/` into `model/`, then regenerate the
+browser model and check it still matches:
 
     python tools/export_model.py
     python tools/make_test_cases.py
@@ -128,3 +135,7 @@ of Physics, 2025–26. Awarded the Department of Physics prize for best group
 project presentation.
 
 Simulations, models and training by Jack Marsters; browser port built with Claude Code.
+
+## Licence
+Code is MIT-licensed (see `LICENSE`). The SerraGlaze BSDF and simulation data
+belong to SerraLux and are not covered by this licence.

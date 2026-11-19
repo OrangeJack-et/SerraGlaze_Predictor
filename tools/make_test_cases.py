@@ -33,9 +33,9 @@ class SerraluxDNN(torch.nn.Module):  # copied from app.py (importing it would st
 
 
 def main():
-    pipeline = joblib.load(ROOT / "pipeline.joblib")
+    pipeline = joblib.load(ROOT / "model" / "pipeline.joblib")
     model = SerraluxDNN(pipeline["pca"].n_components_)
-    model.load_state_dict(torch.load(ROOT / "serraglaze_dnn_weights.pth", map_location="cpu"))
+    model.load_state_dict(torch.load(ROOT / "model" / "serraglaze_dnn_weights.pth", map_location="cpu"))
     model.eval()
 
     rng = np.random.default_rng(0)

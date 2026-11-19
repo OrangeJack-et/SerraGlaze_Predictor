@@ -4,6 +4,9 @@ import torch.nn as nn
 import numpy as np
 import joblib
 import matplotlib.pyplot as plt
+from pathlib import Path
+
+MODEL_DIR = Path(__file__).resolve().parent / "model"
 
 
 # ============================================================
@@ -30,9 +33,9 @@ class SerraluxDNN(nn.Module):
 # ============================================================
 @st.cache_resource
 def load_model():
-    pipeline = joblib.load('pipeline.joblib')
+    pipeline = joblib.load(MODEL_DIR / 'pipeline.joblib')
     model = SerraluxDNN(n_components=pipeline['pca'].n_components_)
-    model.load_state_dict(torch.load('serraglaze_dnn_weights.pth', map_location='cpu'))
+    model.load_state_dict(torch.load(MODEL_DIR / 'serraglaze_dnn_weights.pth', map_location='cpu'))
     model.eval()
     return model, pipeline
 
