@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# SerraLux simulation data (not published) and locally generated training outputs
+data/
+training/outputs/

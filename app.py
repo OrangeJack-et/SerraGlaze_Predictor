@@ -4,6 +4,10 @@ import torch.nn as nn
 import numpy as np
 import joblib
 import matplotlib.pyplot as plt
+from pathlib import Path
+
+MODEL_DIR = Path(__file__).resolve().parent / "model"
+BASE_DEPTH_M = 6.0   # depth of the base room model; room_depth is a multiple of this
 
 
 # ============================================================
@@ -30,9 +34,9 @@ class SerraluxDNN(nn.Module):
 # ============================================================
 @st.cache_resource
 def load_model():
-    pipeline = joblib.load('pipeline.joblib')
+    pipeline = joblib.load(MODEL_DIR / 'pipeline.joblib')
     model = SerraluxDNN(n_components=pipeline['pca'].n_components_)
-    model.load_state_dict(torch.load('serraglaze_dnn_weights.pth', map_location='cpu'))
+    model.load_state_dict(torch.load(MODEL_DIR / 'serraglaze_dnn_weights.pth', map_location='cpu'))
     model.eval()
     return model, pipeline
 
@@ -63,7 +67,7 @@ with col_inputs:
     st.subheader("Room parameters")
     window_height = st.slider(
         "Vertical window placement",
-        min_value=-0.5, max_value=0.5, value=0, step=0.01,
+        min_value=-0.5, max_value=0.5, value=0.0, step=0.01,
         help="Fractional height of the window centre on the wall (0 = floor, 1 = ceiling)."
     )
     angle = st.slider(
@@ -71,13 +75,15 @@ with col_inputs:
         min_value=0.0, max_value=2*np.pi, value=np.pi, step=0.01,
         help="Solar azimuth angle in radians."
     )
-    room_depth = st.slider(
+    room_depth_m = st.slider(
         "Room depth (m)",
-        min_value=0.1, max_value=1.7, value=0.9, step=0.01
+        min_value=0.6, max_value=10.2, value=5.4, step=0.06
     )
+    # The model takes depth as a multiplier on the 6 m base room (0.1-1.7).
+    room_depth = room_depth_m / BASE_DEPTH_M
     window_size = st.slider(
         "Window size",
-        min_value=0.1, max_value=1.9, value=1, step=0.01
+        min_value=0.1, max_value=1.9, value=1.0, step=0.01
     )
 
     predict_button = st.button("Predict", type="primary")
