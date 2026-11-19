@@ -134,7 +134,11 @@ Final-year industrial project with SerraLux, University of Oxford Department
 of Physics, 2025–26. Awarded the Department of Physics prize for best group
 project presentation.
 
-Simulations, models and training by Jack Marsters; browser port built with Claude Code.
+### Authorship
+Simulations, models, training and the report are my own work, completed for
+the 2025–26 project. In November 2026, after assessment, I used Claude Code to
+port the model to the browser and to tidy this repository for publication
+(file layout, paths, comments, README). Models and results are unchanged.
 
 ## Licence
 Code is MIT-licensed (see `LICENSE`). The SerraGlaze BSDF and simulation data
